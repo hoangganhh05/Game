@@ -1,17 +1,33 @@
 workflows:
-  build_ios_app:
-    name: Build Unity iOS App
-    environment:
-      unity: 2021.3.3f1 # <-- đổi về version có sẵn
-      xcode: latest
+  build-ios:
+    name: Unity iOS Build
+    timeout: 60
+    instance_type: mac_mini_m2
     scripts:
+      - name: Read Unity version
+        script: |
+          UNITY_VERSION=$(sed -n '1p' ProjectSettings/ProjectVersion.txt | cut -d' ' -f2)
+          UNITY_CHANGESET=$(sed -n '2p' ProjectSettings/ProjectVersion.txt | sed -e 's/.*(\(.*\))/\1/')
+          echo "UNITY_VERSION=$UNITY_VERSION" >> $CM_ENV
+          echo "UNITY_CHANGESET=$UNITY_CHANGESET" >> $CM_ENV
+
+      - name: Install Unity via Hub CLI
+        script: |
+          yes Y | /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub \
+            -- --headless install --version $UNITY_VERSION --changeset $UNITY_CHANGESET -a arm64
+          yes Y | /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub \
+            -- --headless install-modules --version $UNITY_VERSION -m ios android -a arm64
+
+      - name: Activate Unity license
+        script: |
+          echo "Activating Unity license..."
+          /Applications/Unity/Hub/Editor/$UNITY_VERSION/Unity.app/Contents/MacOS/Unity \
+            -batchmode -quit -projectPath . -username "$UNITY_USERNAME" -password "$UNITY_PASSWORD" -serial "$UNITY_SERIAL"
+
       - name: Build iOS
         script: |
-          /Applications/Unity/Hub/Editor/2021.3.3f1/Unity.app/Contents/MacOS/Unity \
-            -batchmode \
-            -nographics \
-            -quit \
-            -projectPath . \
-            -executeMethod BuildScript.PerformIOSBuild
+          /Applications/Unity/Hub/Editor/$UNITY_VERSION/Unity.app/Contents/MacOS/Unity \
+            -batchmode -quit -projectPath . -executeMethod BuildScript.PerformIOSBuild -nographics
+
     artifacts:
-      - build/ios/**/*
+      - build/ios/**/*.ipa
