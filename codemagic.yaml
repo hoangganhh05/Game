@@ -1,7 +1,6 @@
 workflows:
   build-ios:
     name: Unity iOS Build
-    timeout: 60
     instance_type: mac_mini_m2
     scripts:
       - name: Read Unity version
